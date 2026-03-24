@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lizard Jungle Survival</title>
+    <style>
+        body {
+            margin: 0; padding: 0; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; height: 100vh;
+            background: radial-gradient(circle, #27ae60, #145a32); /* Background Luar Hutan */
+            color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden; touch-action: none;
+        }
+        #ui-layer { 
+            width: 320px; margin-bottom: 10px; 
+            background: rgba(0,0,0,0.5); padding: 10px; border-radius: 15px;
+        }
+        .health-container {
+            width: 100%; height: 15px; background: #333;
+            border-radius: 10px; overflow: hidden; border: 1px solid #fff;
+        }
+        #health-bar {
+            width: 100%; height: 100%; background: #2ecc71;
+            transition: width 0.3s;
+        }
+        canvas { 
+            background-color: #1d331d; /* Warna Tanah Hutan */
+            border: 5px solid #3e2723; /* Border Kayu */
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            max-width: 90vw;
+        }
+        .controls {
+            margin-top: 15px; display: grid;
+            grid-template-columns: repeat(3, 75px); grid-template-rows: repeat(2, 75px); gap: 12px;
+        }
+        .btn {
+            width: 75px; height: 75px; background-color: rgba(255,255,255,0.2); 
+            border: 2px solid #fff; color: white; font-size: 28px; 
+            display: flex; align-items: center; justify-content: center; 
+            border-radius: 50%; user-select: none;
+        }
+        .btn:active { background-color: #27ae60; transform: scale(0.9); }
+        .up { grid-column: 2; }
+        .left { grid-column: 1; grid-row: 2; }
+        .down { grid-column: 2; grid-row: 2; }
+        .right { grid-column: 3; grid-row: 2; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+            <span>🍎 Skor: <b id="score">0</b></span>
+            <span>❤️ HP: <b id="hp-text">100</b></span>
+        </div>
+        <div class="health-container">
+            <div id="health-bar"></div>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas" width="300" height="300"></canvas>
+
+    <div class="controls">
+        <div class="btn up" onclick="changeDir('UP')">▲</div>
+        <div class="btn left" onclick="changeDir('LEFT')">◀</div>
+        <div class="btn down" onclick="changeDir('DOWN')">▼</div>
+        <div class="btn right" onclick="changeDir('RIGHT')">▶</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const scoreEl = document.getElementById("score");
+        const hpBar = document.getElementById("health-bar");
+        const hpText = document.getElementById("hp-text");
+
+        let box = 20;
+        let score = 0;
+        let health = 100;
+        let d = "RIGHT";
+        let lizard = [{x: 8 * box, y: 8 * box}];
+        let food = { x: 5 * box, y: 5 * box };
+        let obstacles = [];
+
+        // Dekorasi Hutan (Titik-titik rumput acak)
+        let grass = [];
+        for(let i=0; i<15; i++) {
+            grass.push({x: Math.random()*canvas.width, y: Math.random()*canvas.height});
+        }
+
+        function spawnObstacles() {
+            obstacles = [];
+            for(let i = 0; i < 3 + Math.floor(score/5); i++) {
+                let obsX = Math.floor(Math.random() * 15) * box;
+                let obsY = Math.floor(Math.random() * 15) * box;
+                // Pastikan rintangan tidak menimpa kepala kadal
+                if(obsX !== lizard[0].x && obsY !== lizard[0].y) {
+                    obstacles.push({x: obsX, y: obsY});
+                }
+            }
+        }
+        spawnObstacles();
+
+        function changeDir(dir) {
+            if(dir == "LEFT" && d != "RIGHT") d = "LEFT";
+            else if(dir == "UP" && d != "DOWN") d = "UP";
+            else if(dir == "RIGHT" && d != "LEFT") d = "RIGHT";
+            else if(dir == "DOWN" && d != "UP") d = "DOWN";
+        }
+
+        function draw() {
+            // Gambar Background Hutan
+            ctx.fillStyle = "#1d331d";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Gambar Rumput Dekorasi
+            ctx.fillStyle = "#274127";
+            grass.forEach(g => {
+                ctx.fillRect(g.x, g.y, 4, 4);
+            });
+
+            // Makanan (Apel Merah)
+            ctx.fillStyle = "#e74c3c";
+            ctx.beginPath();
+            ctx.arc(food.x + box/2, food.y + box/2, box/2 - 2, 0, Math.PI*2);
+            ctx.fill();
+
+            // Rintangan (Batu/Kayu Abu-abu Tua)
+            ctx.fillStyle = "#5d4037";
+            obstacles.forEach(obs => {
+                ctx.fillRect(obs.x + 2, obs.y + 2, box - 4, box - 4);
+            });
+
+            // Gerakan & Tembus Tembok
+            let lizardX = lizard[0].x;
+            let lizardY = lizard[0].y;
+
+            if( d == "LEFT") lizardX -= box;
+            if( d == "UP") lizardY -= box;
+            if( d == "RIGHT") lizardX += box;
+            if( d == "DOWN") lizardY += box;
+
+            if(lizardX < 0) lizardX = canvas.width - box;
+            else if(lizardX >= canvas.width) lizardX = 0;
+            if(lizardY < 0) lizardY = canvas.height - box;
+            else if(lizardY >= canvas.height) lizardY = 0;
+
+            let newHead = { x: lizardX, y: lizardY };
+
+            // Cek Tabrak Rintangan
+            obstacles.forEach(obs => {
+                if(newHead.x == obs.x && newHead.y == obs.y) {
+                    health -= 25;
+                    updateUI();
+                    spawnObstacles();
+                }
+            });
+
+            // Cek Makan
+            if(newHead.x == food.x && newHead.y == food.y) {
+                score++;
+                health = Math.min(100, health + 20);
+                food = {
+                    x: Math.floor(Math.random() * 15) * box,
+                    y: Math.floor(Math.random() * 15) * box
+                };
+                spawnObstacles();
+                updateUI();
+            } else {
+                lizard.pop();
+            }
+
+            // Cek Tabrak Diri Sendiri
+            if(collision(newHead, lizard)) {
+                health -= 5;
+                updateUI();
+            }
+
+            lizard.unshift(newHead);
+
+            // Gambar Kadal (Warna Hijau)
+            lizard.forEach((part, index) => {
+                ctx.fillStyle = (index == 0) ? "#2ecc71" : "#27ae60";
+                ctx.fillRect(part.x + 1, part.y + 1, box - 2, box - 2);
+                // Mata untuk kepala
+                if(index === 0) {
+                    ctx.fillStyle = "white";
+                    ctx.fillRect(part.x + 4, part.y + 4, 4, 4);
+                    ctx.fillRect(part.x + 12, part.y + 4, 4, 4);
+                }
+            });
+
+            if(health <= 0) {
+                clearInterval(game);
+                alert("Game Over! Skor Survival: " + score);
+                location.reload();
+            }
+        }
+
+        function collision(head, array) {
+            for(let i = 0; i < array.length; i++) {
+                if(head.x == array[i].x && head.y == array[i].y) return true;
+            }
+            return false;
+        }
+
+        function updateUI() {
+            scoreEl.innerText = score;
+            hpText.innerText = health;
+            hpBar.style.width = health + "%";
+            hpBar.style.backgroundColor = (health < 40) ? "#e74c3c" : "#2ecc71";
+        }
+
+        let game = setInterval(draw, 140);
+    </script>
+</body>
+</html>
